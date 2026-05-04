@@ -23,7 +23,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Client } from "@gradio/client";
 
-const GRADIO_URL = "https://fdce80410e869715bb.gradio.live";
+const GRADIO_URL = "https://e5a6bb0b06da7f9ba7.gradio.live";
 
 export default function App() {
   const [showBoundingBoxes, setShowBoundingBoxes] = useState(true);

@@ -1,69 +1,83 @@
-# ⛩️ MangaOCR: Neural Processing Pipeline
+# ⛩️ MangaOCR — Neural Processing Pipeline
 
-Hệ thống nhận diện chữ trên Manga chuyên nghiệp với giao diện hiện đại và pipeline xử lý AI mạnh mẽ. Dự án kết hợp sức mạnh tính toán của GPU trên Kaggle và sự linh hoạt của React Frontend.
+Hệ thống nhận diện chữ trên ảnh Manga sử dụng pipeline AI đa mô hình (SVTR, CRNN, TrOCR), kết hợp sức mạnh GPU từ Kaggle làm backend xử lý và giao diện React hiện đại làm frontend. Toàn bộ ứng dụng frontend được đóng gói bằng Docker để triển khai nhanh chóng trên mọi môi trường.
 
 ---
 
-## 🚀 Hướng dẫn thiết lập (Setup Guide)
+## 🏗️ Kiến trúc hệ thống
 
-Để khởi chạy ứng dụng, bạn cần thực hiện theo quy trình 2 bước dưới đây:
+```
+┌─────────────────────┐         Gradio Public URL          ┌──────────────────────┐
+│   React Frontend    │ ◄──────────────────────────────────►│   Kaggle GPU Backend │
+│   (Docker + Nginx)  │         @gradio/client              │   (demo-cs231.ipynb) │
+│   localhost:8080    │                                     │   SVTR / CRNN / TrOCR│
+└─────────────────────┘                                     └──────────────────────┘
+```
 
-### Bước 1: Khởi tạo Backend (Kaggle GPU)
+- **Frontend** — Ứng dụng React/Vite được biên dịch thành file tĩnh, phục vụ qua Nginx trong Docker container.
+- **Backend** — Notebook Python chạy trên Kaggle GPU, khởi tạo Gradio server và công khai API qua Public URL.
 
-1. Mở file notebook `demo-cs231.ipynb` trên Kaggle.
-2. Cài đặt các thư viện cần thiết và chạy toàn bộ các cell trong notebook.
-3. Sau khi chạy cell cuối cùng, Gradio sẽ cung cấp một đường dẫn công khai (Public URL) có dạng:
-   `https://xxxxxxxxxxxxxxxx.gradio.live`
-4. **Copy đường dẫn này.**
+---
 
-### Bước 2: Cấu hình và Chạy Frontend (Local)
+## 🚀 Hướng dẫn triển khai
 
-1. Mở file `src/App.tsx` trong thư mục dự án của bạn.
-2. Tìm biến `GRADIO_URL` ở ngay đầu file (khoảng dòng 26) và dán đường dẫn bạn vừa copy từ Kaggle vào:
-   ```typescript
-   const GRADIO_URL = "https://your-new-link.gradio.live";
+### Yêu cầu
+
+| Thành phần | Mô tả |
+|---|---|
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | Đã cài đặt và đang chạy (biểu tượng trạng thái xanh lá). |
+| Tài khoản [Kaggle](https://www.kaggle.com/) | Có quyền sử dụng GPU để chạy notebook backend. |
+
+### Bước 1 — Khởi động Backend trên Kaggle
+
+1. Mở notebook `demo-cs231.ipynb` trên Kaggle và chạy toàn bộ các cell.
+2. Cell cuối cùng sẽ khởi tạo Gradio server và sinh ra một đường dẫn công khai:
    ```
-3. Cài đặt các dependencies (nếu là lần đầu):
+   Running on public URL: https://xxxxxxxxxxxxxxxx.gradio.live
+   ```
+3. Sao chép đường dẫn này — đây chính là API endpoint mà frontend sẽ kết nối tới.
+
+### Bước 2 — Build và chạy Frontend bằng Docker
+
+1. Mở terminal tại thư mục dự án và build Docker image, truyền Gradio URL vừa copy vào:
    ```bash
-   npm install
+   docker build --build-arg VITE_GRADIO_URL="https://xxxxxxxxxxxxxxxx.gradio.live" -t manga-ocr-frontend .
    ```
-4. Khởi chạy ứng dụng:
+2. Khởi chạy container:
    ```bash
-   npm run dev
+   docker run -d -p 8080:80 manga-ocr-frontend
    ```
-5. Truy cập ứng dụng tại `http://localhost:5173`.
+3. Truy cập ứng dụng tại **http://localhost:8080**.
+
+> **Lưu ý:** Mỗi khi Kaggle sinh ra Gradio URL mới, bạn cần build lại image với URL mới tương ứng.
 
 ---
 
-## 🛠 Pipeline Xử lý (Analysis Pipeline)
+## 🛠 Pipeline xử lý
 
-Ứng dụng được thiết kế theo quy trình xử lý ảnh tuần tự (Pipeline-based):
+Quy trình nhận diện chữ được chia thành 4 giai đoạn tuần tự:
 
-1. **Content Ingestion**: Tải ảnh Manga lên hệ thống.
-2. **Neural Geometry Mapping**: Sử dụng model detection để xác định tọa độ các khung chứa chữ (Bounding Boxes).
-3. **Snippet Isolation**: Tự động cắt các phân vùng chữ thành các ảnh nhỏ (Snippets) để tăng độ chính xác cho việc nhận diện.
-4. **Recognition Manifest**: Sử dụng các model OCR (SVTR, CRNN, TrOCR) để chuyển đổi hình ảnh thành văn bản.
-
----
-
-## 🎨 Tính năng nổi bật
-
-- **Modern UI**: Giao diện thiết kế theo phong cách Lumina, hỗ trợ dark mode và các hiệu ứng chuyển cảnh mượt mà.
-- **Model Switching**: Cho phép thay đổi linh hoạt giữa các model OCR (CRNN, SVTR, TrOCR) ngay trên giao diện.
-- **Real-time Monitoring**: Theo dõi trạng thái xử lý của từng bước trong pipeline.
-- **Export Data**: Hỗ trợ copy kết quả OCR và xuất báo cáo dữ liệu thô.
+| Giai đoạn | Tên | Mô tả |
+|:-:|---|---|
+| 1 | **Content Ingestion** | Tải ảnh Manga lên hệ thống. |
+| 2 | **Neural Geometry Mapping** | Phát hiện và xác định tọa độ các vùng chứa chữ (Bounding Boxes). |
+| 3 | **Snippet Isolation** | Cắt từng vùng chữ thành ảnh nhỏ riêng biệt để tăng độ chính xác. |
+| 4 | **Recognition Manifest** | Nhận diện ký tự bằng model OCR đã chọn (SVTR, CRNN hoặc TrOCR). |
 
 ---
 
 ## 📦 Công nghệ sử dụng
 
-- **Frontend**: React (Vite), TypeScript, TailwindCSS.
-- **Icons & Motion**: Lucide React, Framer Motion.
-- **Backend Communication**: `@gradio/client`.
-- **AI Engine**: Python, OpenCV, PyTorch (Chạy trên Kaggle).
+| Lớp | Công nghệ |
+|---|---|
+| Frontend | React, Vite, TypeScript, TailwindCSS |
+| UI Components | Lucide React, Framer Motion |
+| Backend Communication | `@gradio/client` |
+| AI Engine | Python, OpenCV, PaddlePaddle, PyTorch, Transformers |
+| Containerization | Docker, Nginx |
 
 ---
 
 <div align="center">
-  <sub>Built for CS231 - Advanced Computer Vision</sub>
+  <sub>Built for CS231 — Advanced Computer Vision</sub>
 </div>
